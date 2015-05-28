@@ -39,6 +39,7 @@ function grid (selector,data) {
   adjust (data);
 
   var pie_group = dc.pieChart(selector +  " .group").innerRadius(20).radius(70);
+  var word_group = dc.wordCloud(selector + " .word");
   var group = ndx.dimension(function(d) {
       if (typeof d.eugroup == "undefined") return "";
       return d.eugroup;
@@ -117,6 +118,10 @@ function grid (selector,data) {
     .renderlet(function (chart) {
         });
 
+  word_group
+    .dimension(country)
+    .group(countryGroup);
+
   bar_country
     .width(444)
     .height(200)
@@ -171,6 +176,7 @@ dc.renderAll();
 
 
 <div id="ep2014list">
+<div class="word"></div>
 <div class="group"></div>
 <div class="country"></div>
 <div class="gender"></div>
