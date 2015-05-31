@@ -315,3 +315,15 @@ div.dc-chart {
     pointer-events: all;
     cursor: pointer;
 }
+
+.dc-chart g.dc-cloud-word text {
+    cursor: pointer;
+}
+
+.dc-chart g.dc-cloud-word.deselected text{
+    display: block;   
+}
+
+.dc-chart g.dc-cloud-word.deselected {
+    fill: #ccc;
+}

@@ -406,20 +406,35 @@ dc.wordCloud = function (parent, chartGroup) {
     var _g;
 
     var _size = [400, 400];
+    var _padding = 5;
+    var _font = "Impact";
+    var _fontWeight = "normal";
     var _scale = d3.scale.log().range([10, 60]);
     var _fontSize = function(d) { return _scale(+d); };
-    var _font = "Impact";
+    var _rotate = function(d) {return ~~(Math.random() * 2) * 90; };
+    var _selfFilter = false;
+
+
     var fill = d3.scale.category20();
 
     var _chart = dc.colorMixin(dc.baseMixin({}));
 
-    var _sizer = function(d) { if (d==0) return 0;
-        else return _fontSize(d);
-    }
-
-
+    // Set chart property.
     _chart.width(_size[0]);
     _chart.height(_size[1]);
+
+    var _sizer = function(d) { 
+        if (d==0) {
+            return 0;
+        }
+        else {
+            return _fontSize(d);
+        }
+    }
+
+    var _gTraslator = function() {
+        return "translate("+_chart.width()/2+","+_chart.height()/2+")";
+    }
 
     // Accessors
     _chart.size = function(s) {
@@ -430,45 +445,104 @@ dc.wordCloud = function (parent, chartGroup) {
         return _chart;
     };
 
+    _chart.padding = function (p) {
+        if (!arguments.length) {
+            return _padding;
+        }
+        _padding = p;
+        return _chart;
+    };
+
+    _chart.font = function (f) {
+        if (!arguments.length) {
+            return _font;
+        }
+        _font = f;
+        return _chart;
+    };
+
+    _chart.fontSizeScale = function (s) {
+        if (!arguments.length) {
+            return _scale;
+        }
+        _scale = s;
+        return _chart;
+    };
+
+    _chart.fontSize = function (f) {
+        if (!arguments.length) {
+            return _fontSize;
+        }
+        _fontSize = f;
+        return _chart;
+    };    
+
+    _chart.fontWeight = function (f) {
+        if (!arguments.length) {
+            return _fontWeight;
+        }
+        _fontWeight = f;
+        return _chart;
+    };
+
+    _chart.rotate = function (r) {
+        if (!arguments.length) {
+            return _rotate;
+        }
+        _rotate = r;
+        return _chart;
+    }; 
+
     function createCloud(){
-        return d3.layout.cloud().size([1000, 1000])
-            .padding(5)
-            .rotate(function() { return ~~(Math.random() * 2) * 90; })
+        return d3.layout.cloud().size([_chart.width(), _chart.height()])
+            .padding(_padding)
+            .rotate(_rotate)
             .font(_font)
+            .fontWeight(_fontWeight)
             .fontSize(function(d) { return d.size; })
-            //.fontSize(_fontSize)
             .on("end", drawWords);
     }   
 
-    function drawCloud(){
-        var cloud = createCloud();
-        cloud.stop()
-            .words(_chart.data().map(function(d){ return {text:d.key, size: _sizer(d.value)}; }))
-            .start();
-
-        var cloudWords = _g.selectAll("text."+WORD_CLASS);
-
-        console.log(cloudWords);
+    function updateCloud(){
+        var cloudWords = _g.selectAll("g."+WORD_CLASS);
 
         var _translator = function(d) {
             return 'translate('+ [d.x, d.y] +')rotate('+ d.rotate +')';
         }
 
-        cloudWords.transition()
+        console.log(cloudWords);
+
+        cloudWords.select("text").transition()
             .duration("1000")
             .attr('transform', _translator)
             .style("font-size",function(d){return d.size+"px"; } );
+    }
 
+    function drawCloud(){
+        var cloud = createCloud();
+        
+        if(!_selfFilter){
+            cloud.stop()
+                .words(_chart.data().map(function(d){ return {text:d.key, size: _sizer(d.value), data:d}; }))
+                .start();
+        }
+        else{
+            _selfFilter = false;
+        }
+
+        updateCloud();
+        highlightFilter();
     }
 
     function drawWords(words){
-        _g.attr("transform", "translate(150,150)")
-            .selectAll("text")
+        _g.attr("transform", _gTraslator())
+            .selectAll("g")
             .data(words)
-            .enter().append("text")
+            .enter().append("g")
             .attr('class', function (d, i) {
                 return WORD_CLASS + ' _' + i;
             })
+            .append("text")
             .style("font-size", function(d){return d.size+"px"; })
             .style("font-family", "Impact")
             .style("fill", function(d, i) {
@@ -481,11 +555,36 @@ dc.wordCloud = function (parent, chartGroup) {
             .text(function(d) { return d.text; });
     }
 
-    function onClick(d, i) {
-        for(var j=0;j<_chart.data().length; j++){
-            if (d.text===_chart.data()[j].key)
-                _chart.onClick(_chart.data()[j], i);
+    function highlightFilter() {
+        if (_chart.hasFilter()) {
+            _chart.selectAll('g.' + WORD_CLASS).each(function (d) {
+                if (isSelectedWord(d)) {
+                    _chart.highlightSelected(this);
+                } else {
+                    _chart.fadeDeselected(this);
+                }
+            });
+            _chart.selectAll('g.' + dc.constants.DESELECTED_CLASS).select("text").style("fill", "#ccc");
+            _chart.selectAll('g.' + dc.constants.SELECTED_CLASS).select("text").style("fill", function(d, i) { return fill(i); });
+        } else {
+            _chart.selectAll('g.' + WORD_CLASS).each(function () {
+                _chart.resetHighlight(this);
+            });
+            _chart.selectAll('g.' + WORD_CLASS).select("text").style("fill", function(d, i) { return fill(i); });
         }
+
+
+    }
+
+    function isSelectedWord(d) {
+        console.log(d);
+        return _chart.hasFilter(_chart.keyAccessor()(d.data));
+    }
+
+
+    function onClick(d, i) {
+        _selfFilter = true;
+        _chart.onClick(d.data, i);
     }
 
     _chart._doRender = function () {
